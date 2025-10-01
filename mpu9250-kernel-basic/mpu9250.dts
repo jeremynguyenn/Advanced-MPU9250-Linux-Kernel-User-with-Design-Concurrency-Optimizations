@@ -1,0 +1,82 @@
+// mpu9250.dts
+// Device tree overlay for Raspberry Pi 4 to enable I2C, MPU9250, and AK8963 with power management.
+// Enhanced with configurable I2C speed, IRQ pin, and additional overrides.
+// Compile with: dtc -@ -I dts -O dtb -o mpu9250.dtbo mpu9250.dts
+// Load with: dtoverlay=mpu9250 in /boot/config.txt
+// Enhanced for multi-instance: Support multiple devices via instance_id.
+// Author: Nguyen Nhan
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2711";
+
+    // Enable and configure I2C1 bus
+    fragment@0 {
+        target = <&i2c1>;
+        __overlay__ {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "okay";
+            clock-frequency = <400000>; // 400kHz I2C for faster communication
+            clocks = <&clocks 1>; // I2C1 clock for bcm2711
+
+            mpu9250@68 {
+                compatible = "invensense,mpu9250";
+                reg = <0x68>; // I2C address 0x68 (AD0=0)
+                interrupt-parent = <&gpio>;
+                interrupts = <17 0x2>; // GPIO17, falling edge
+                pinctrl-names = "default";
+                pinctrl-0 = <&mpu9250_pins>;
+                vdd-supply = <&vdd_3v3_reg>; // 3.3V regulator
+                vddio-supply = <&vdd_3v3_reg>; // Digital I/O supply
+                status = "okay";
+                instance-id = <0>; // Default instance 0
+
+                magnetometer {
+                    compatible = "asahi-kasei,ak8963";
+                    reg = <0x0C>; // AK8963 I2C address
+                    status = "okay";
+                };
+            };
+        };
+    };
+
+    // Configure GPIO for interrupt
+    fragment@1 {
+        target = <&gpio>;
+        __overlay__ {
+            mpu9250_irq_pin: mpu9250_irq_pin {
+                brcm,pins = <17>;
+                brcm,function = <1>; // Input mode
+                brcm,pull = <2>; // Pull-up resistor
+            };
+        };
+    };
+
+    // Pin control configuration
+    fragment@2 {
+        target = <&pinctrl>;
+        __overlay__ {
+            mpu9250_pins: mpu9250_pins {
+                brcm,pins = <17>;
+                brcm,function = <1>; // Input mode
+                brcm,pull = <2>; // Pull-up resistor
+            };
+        };
+    };
+
+    // Dynamic configuration overrides
+    // Note: These overrides allow runtime configuration, preventing race conditions in device tree loading by ensuring atomic updates.
+    __overrides__ {
+        addr = <&mpu9250>,"reg:0"; // Override I2C address
+        irq_pin = <&mpu9250_irq_pin>,"brcm,pins:0"; // Override IRQ pin
+        i2c_bus = <&i2c1>,"status"; // Enable/disable I2C bus
+        i2c_speed = <&i2c1>,"clock-frequency:0"; // Override I2C speed
+        accel_scale = <&mpu9250>,"accel-scale:0"; // Override accel scale (2g, 4g, 8g, 16g)
+        gyro_scale = <&mpu9250>,"gyro-scale:0"; // Override gyro scale (250dps, 500dps, 1000dps, 2000dps)
+        sample_rate = <&mpu9250>,"sample-rate:0"; // Override sample rate (Hz)
+        // New: Multi-instance support override
+        instance_id = <&mpu9250>,"instance-id:0"; // For multi-device setups
+    };
+};
