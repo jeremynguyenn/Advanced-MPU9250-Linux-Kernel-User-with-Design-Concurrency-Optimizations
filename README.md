@@ -287,38 +287,5 @@ flowchart TD
     style Concurrency fill:#f9f,stroke:#333,stroke-width:2px
 ```
 
-```mermaid
-flowchart TD
-    subgraph Hardware
-        MPU9250[MPU9250 Sensor] -->|I2C Read/Write| I2C[I2C Bus]
-        I2C -->|IRQ| GPIO[GPIO IRQ Pin]
-    end
+<img width="5990" height="1206" alt="image" src="https://github.com/user-attachments/assets/6cea0de1-34d3-45e6-8913-26b6764ae930" />
 
-    subgraph KernelSpace
-        Driver[mpu9250_driver.c: Probe/Remove, Sysfs, Input evdev, Kthread] -->|Init| Ops[mpu9250_ops.c: Read/Write, Convert, Set Scale/Rate, Calibration]
-        Ops -->|Shared Data Update| Concurrency[Concurrency Primitives: Futex (futex.c), io_uring/eventfd, NUMA, PI Mutex, RCU, Seqlock, Barriers, Lockdep/KCSAN (debug.c)]
-        Driver -->|IRQ Handling| IRQHandler[mpu9250_fileops.c: IRQ Handler, Read Workqueue]
-        IRQHandler -->|Schedule Work| Workqueue[Read Work: Update Data, Wake/Futex/Eventfd]
-        Workqueue -->|File Ops| FileOps[mpu9250_fileops.c: Open/Read/Write/Ioctl/Poll/Mmap]
-        FileOps -->|mmap zero-copy| Shared[Shared Memory: mpu9250_shared (seqlock, futex_var)]
-        Driver -->|Device Tree| DTS[mpu9250.dts: I2C Config, IRQ, Overrides]
-    end
-
-    subgraph UserSpace
-        UserTest[user_space_test.c: Threads, Ioctl, Mmap, Futex/io_uring/numa/rt] -->|/dev/mpu9250| FileOps
-        IPCTest[mpu9250_ipc_test.c: MQ/SHM/FIFO/Pipe, Bench, Futex/io_uring/numa/rt] -->|/dev/mpu9250| FileOps
-        UserTest -->|liburcu/liburing/TSan| Concurrency
-        IPCTest -->|liburcu/liburing/TSan| Concurrency
-    end
-
-    subgraph Build
-        Makefile[Makefile: Build Module/Tests, Install, DTBO, Docs, Bench/Calib]
-    end
-
-    Hardware --> KernelSpace
-    KernelSpace --> UserSpace
-    Makefile --> KernelSpace
-    Makefile --> UserSpace
-
-    style Concurrency fill:#f9f,stroke:#333,stroke-width:2px
-```
