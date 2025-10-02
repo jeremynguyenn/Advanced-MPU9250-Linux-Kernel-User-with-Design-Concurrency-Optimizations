@@ -11,7 +11,8 @@
 # Note on Memory Layout: During compilation, code segment holds compiled binaries (.ko, executables),
 # data segment for globals, stack for function calls, heap for dynamic allocations (e.g., via malloc in user tests).
 
-obj-m += mpu9250_driver.o mpu9250_ops.o mpu9250_fileops.o
+obj-m += mpu9250_driver.o mpu9250_ops.o mpu9250_fileops.o mpu9250_futex.o mpu9250_debug.o
+obj-$(CONFIG_KUNIT) += mpu9250_test.o
 
 KDIR ?= /lib/modules/$(shell uname -r)/build
 ARCH ?= arm64
